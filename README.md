@@ -79,17 +79,47 @@ npm start
 
 ---
 
-## 🐳 Docker 컨테이너 배포 (리눅스 서버)
+## 🐳 Docker 배포 가이드 (리눅스 서버)
 
-### Docker Compose로 빌드 후 실행 (권장)
+### 1단계: Docker 이미지 빌드
+
+`docker build` 명령어로 이미지를 먼저 빌드합니다.
 
 ```bash
-# 1. 이미지 빌드
-docker compose build
+docker build -t torrent-priority-manager:latest .
+```
 
-# 2. 백그라운드 실행
+---
+
+### 2단계: Docker Compose로 컨테이너 실행
+
+빌드된 이미지를 기반으로 백그라운드에서 컨테이너를 실행합니다.
+
+```bash
+# 백그라운드 실행
 docker compose up -d
 
-# 3. 상세 로그 확인
+# 실시간 동작 로그 확인
+docker compose logs -f
+
+# 컨테이너 중지
+docker compose down
+```
+
+---
+
+### (참고) 코드 수정 후 업데이트 및 재실행 절차
+
+```bash
+# 1. 최신 코드 가져오기
+git pull
+
+# 2. 이미지 다시 빌드
+docker build -t torrent-priority-manager:latest .
+
+# 3. 컨테이너 재생성 및 실행
+docker compose up -d
+
+# 4. 로그 확인
 docker compose logs -f
 ```

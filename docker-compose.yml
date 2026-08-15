@@ -1,8 +1,6 @@
 services:
   torrent-priority-manager:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: torrent-priority-manager:latest
     container_name: torrent-priority-manager
     restart: unless-stopped
     env_file:
