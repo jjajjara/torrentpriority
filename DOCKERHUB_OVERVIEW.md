@@ -1,36 +1,37 @@
-# qBittorrent Torrent Priority & Auto Cleaner Manager
+# qBittorrent Torrent Priority Manager & Auto Cleaner
 
-qBittorrent Web API를 연동하여 완료된 토렌트를 자동으로 삭제하고, 장시간 다운로드가 멈춰 있는(정체된) 토렌트의 대기열 우선순위를 자동으로 최하위로 강등하는 경량 백엔드 데몬 서비스입니다.
+A lightweight Node.js daemon service that automatically cleans up completed torrents and demotes stalled downloads to the bottom priority using the qBittorrent Web API.
 
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/jjajjara/torrentpriority)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 - 🔗 **GitHub Repository:** [https://github.com/jjajjara/torrentpriority](https://github.com/jjajjara/torrentpriority)
 
 ---
 
-## 🎯 주요 기능
+## 🎯 Key Features
 
-모든 기능은 환경 변수를 통해 개별적으로 **ON / OFF** 및 임계값 설정이 가능합니다.
+All features can be individually **toggled ON / OFF** and customized via environment variables:
 
-1. **[기능 1] 완료된 강제시작(ForceStart) 토렌트 자동 삭제**
-   - 강제시작(`force_start=true`) 상태이면서 다운로드 100% 완료된 토렌트를 자동으로 삭제합니다.
-   - 기본적으로 실제 다운로드 파일은 유지되고 토렌트 등록만 삭제됩니다.
+1. **[Feature 1] Auto-delete Completed ForceStart Torrents**
+   - Automatically removes torrents that have `force_start=true` and reached 100% completion.
+   - Preserves downloaded data files by default (only removes the torrent from qBittorrent).
 
-2. **[기능 2] 완료된 일반(Non-ForceStart) 토렌트 자동 삭제**
-   - 일반 상태의 토렌트 중 진행률 100% 완료(시딩)된 토렌트를 자동 삭제합니다.
+2. **[Feature 2] Auto-delete Completed Normal Torrents**
+   - Automatically removes finished downloads (100% / seeding) for non-force start torrents.
 
-3. **[기능 3] 정체된 다운로드 토렌트 대기열 최하위 강등**
-   - 다운로드 중인 일반 토렌트 중 속도가 1KB/s 미만이고 진행률 변화가 없는 상태가 5분 이상 지속되면 대기열 맨 뒤(최하위 우선순위)로 이동합니다.
-   - ⚠️ **강제 다운로드(`force_start=true`)는 제외됩니다.**
+3. **[Feature 3] Demote Stalled Downloads to Bottom Priority**
+   - Automatically moves active download torrents with speeds below 1 KB/s and no progress change for 5+ minutes to the bottom of the queue (`bottomPrio`).
+   - ⚠️ **Force-download torrents (`force_start=true`) are intentionally excluded.**
 
-4. **상세 동작 로깅**
-   - 매 주기마다 삭제된 토렌트 이름, 우선순위 변경 토렌트 및 정체 지속 시간/속도 등을 명확하게 기록합니다.
+4. **Detailed Action Logging**
+   - Logs specific actions taken during each cycle, including torrent names, states, stalled durations, and speeds.
 
 ---
 
-## 🚀 빠른 시작 (Docker Compose)
+## 🚀 Quick Start (Docker Compose)
 
-### 1. `docker-compose.yml` 작성
+### 1. `docker-compose.yml`
 
 ```yaml
 services:
@@ -44,60 +45,60 @@ services:
       - TZ=Asia/Seoul
 ```
 
-### 2. `.env` 파일 작성
+### 2. `.env` Configuration
 
 ```env
 # ==============================================
-# qBittorrent 서버 접속 정보 (필수)
+# qBittorrent Server Connection (Required)
 # ==============================================
 QBIT_URL=http://192.168.1.100:8080
 QBIT_USERNAME=admin
 QBIT_PASSWORD=your_password
 
 # ==============================================
-# 기본 주기 및 임계값 설정
+# General Schedules & Thresholds
 # ==============================================
-# 스케줄러 실행 주기 (분 단위, 기본값: 1)
+# Check interval in minutes (default: 1)
 CHECK_INTERVAL_MINUTES=1
 
-# 다운로드 정체(Stalled) 판단 기준 시간 (분 단위, 기본값: 5)
+# Stalled duration threshold in minutes (default: 5)
 STALLED_THRESHOLD_MINUTES=5
 
-# 다운로드 정체 판단 기준 속도 (Bytes/s 단위, 기본값: 1024 = 1KB/s)
+# Stalled download speed threshold in Bytes/s (default: 1024 = 1 KB/s)
 STALLED_SPEED_LIMIT_BYTES=1024
 
-# 삭제 시 실제 다운로드 파일(데이터)도 함께 삭제할지 여부 (기본값: false - 토렌트만 삭제)
+# Whether to delete downloaded files when deleting torrents (default: false - keep files)
 DELETE_TORRENT_FILES=false
 
-# 드라이 런 모드 (true일 경우 실제 삭제/변경 없이 로그만 출력)
+# Dry-run mode: logs actions without making actual changes (default: false)
 ENABLE_DRY_RUN=false
 
 # ==============================================
-# 기능별 ON / OFF 토글 설정 (true / false)
+# Feature Toggles (true / false)
 # ==============================================
-# [기능 1] 완료(100%)된 강제시작(ForceStart) 토렌트 자동 삭제
+# [Feature 1] Auto-delete completed (100%) ForceStart torrents
 ENABLE_DELETE_COMPLETED_FORCE_START=true
 
-# [기능 2] 완료(100%)된 일반(Non-ForceStart) 토렌트 자동 삭제
+# [Feature 2] Auto-delete completed (100%) Normal torrents
 ENABLE_DELETE_COMPLETED_NORMAL=true
 
-# [기능 3] 장시간 정체된(Stalled) 일반 다운로드 토렌트 대기열 최하위 강등
+# [Feature 3] Demote stalled active downloads to bottom priority
 ENABLE_DEMOTE_STALLED=true
 ```
 
-### 3. 실행 및 로그 확인
+### 3. Run & View Logs
 
 ```bash
-# 컨테이너 실행
+# Start the container
 docker compose up -d
 
-# 실시간 로그 확인
+# View real-time logs
 docker compose logs -f
 ```
 
 ---
 
-## 🐳 Docker CLI 직접 실행
+## 🐳 Docker CLI Usage
 
 ```bash
 docker run -d \
@@ -110,7 +111,7 @@ docker run -d \
 
 ---
 
-## 📜 소스코드 및 문의
+## 📜 Source Code & Issues
 
-- 소스코드 및 이슈 제보는 GitHub 저장소를 참고해주세요:
+- Source code, issue tracking, and contributions:
   [https://github.com/jjajjara/torrentpriority](https://github.com/jjajjara/torrentpriority)
