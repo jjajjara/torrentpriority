@@ -3,8 +3,11 @@
 A lightweight Node.js daemon service that automatically cleans up completed torrents and demotes stalled downloads to the bottom priority using the qBittorrent Web API.
 
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/jjajjara/torrentpriority)
+[![Tested on: qBittorrent v5.2.3](https://img.shields.io/badge/Tested%20on-qBittorrent%20v5.2.3-green.svg)](https://www.qbittorrent.org/)
 [![Docker Image](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> **Compatibility**: Tested and fully verified with **qBittorrent v5.2.3** Web API (and compatible with qBittorrent 4.x / 5.x WebUI).
 
 ---
 
