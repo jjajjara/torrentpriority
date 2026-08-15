@@ -1,0 +1,11 @@
+services:
+  torrent-priority-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: torrent-priority-manager
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Seoul
