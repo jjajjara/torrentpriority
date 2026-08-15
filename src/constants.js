@@ -15,7 +15,11 @@ export const DEFAULT_CONFIG_VALUES = {
   STALLED_THRESHOLD_MINUTES: 5,
   STALLED_SPEED_LIMIT_BYTES: 1024, // 1 KB/s
   DELETE_TORRENT_FILES: false,
-  ENABLE_DRY_RUN: false
+  ENABLE_DRY_RUN: false,
+  // 기능별 On/Off 기본값
+  ENABLE_DELETE_COMPLETED_FORCE_START: true, // 강제시작 완료 토렌트 삭제
+  ENABLE_DELETE_COMPLETED_NORMAL: false,      // 일반 완료 토렌트 삭제 (안전을 위해 기본 false, .env에서 켤 수 있음)
+  ENABLE_DEMOTE_STALLED: true                // 정체 다운로드 우선순위 최하위 이동
 };
 
 /**

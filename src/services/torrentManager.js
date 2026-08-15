@@ -16,7 +16,7 @@ export class TorrentManager {
     this.qbitApiClient = qbitApiClient;
     this.config = config;
 
-    // 정체 토렌트 추적용 Map (hash -> { stalledSince: number, lastProgress: number })
+    // 정체 토렌트 추적용 Map (hash -> { stalledSince: number, lastProgress: number, hasDemoted: boolean })
     this.stalledTracker = new Map();
   }
 
@@ -24,26 +24,54 @@ export class TorrentManager {
    * 토렌트 상태 점검 및 처리 주기 실행
    */
   async processCycle() {
-    console.log(`\n[${new Date().toLocaleString('ko-KR')}] 토렌트 관리 작업 시작...`);
+    const cycleStartTime = new Date().toLocaleString('ko-KR');
+    console.log(`\n================ [${cycleStartTime}] 작업 사이클 시작 ================`);
 
     const torrentList = await this.qbitApiClient.fetchTorrentList();
-    console.log(`[토렌트 상태] 전체 ${torrentList.length}개의 토렌트 감지`);
+    console.log(`[토렌트 상태] 현재 등록된 토렌트: 총 ${torrentList.length}개`);
 
-    // 1. 완료된 강제시작(ForceStart) 토렌트 정리
-    await this.cleanupCompletedForceStartTorrents(torrentList);
+    let performedActionsCount = 0;
 
-    // 2. 멈춤(Stalled) 일반 다운로드 토렌트 감지 및 우선순위 조정
-    await this.handleStalledDownloadTorrents(torrentList);
+    // 1. 강제시작(ForceStart) 완료 토렌트 정리
+    if (this.config.enableDeleteCompletedForceStart) {
+      const deletedCount = await this.cleanupCompletedForceStartTorrents(torrentList);
+      performedActionsCount += deletedCount;
+    } else {
+      console.log('[기능 비활성] 강제시작 완료 토렌트 자동 삭제 기능이 꺼져 있습니다.');
+    }
 
-    // 3. 존재하지 않는 토렌트 추적 정보 정리 (GC)
+    // 2. 일반(Non-ForceStart) 완료 토렌트 정리
+    if (this.config.enableDeleteCompletedNormal) {
+      const deletedCount = await this.cleanupCompletedNormalTorrents(torrentList);
+      performedActionsCount += deletedCount;
+    } else {
+      console.log('[기능 비활성] 일반 완료 토렌트 자동 삭제 기능이 꺼져 있습니다.');
+    }
+
+    // 3. 멈춤(Stalled) 일반 다운로드 토렌트 감지 및 우선순위 조정
+    if (this.config.enableDemoteStalled) {
+      const demotedCount = await this.handleStalledDownloadTorrents(torrentList);
+      performedActionsCount += demotedCount;
+    } else {
+      console.log('[기능 비활성] 정체 다운로드 토렌트 우선순위 최하위 조정 기능이 꺼져 있습니다.');
+    }
+
+    // 4. 삭제되거나 목록에서 사라진 토렌트 추적 정보 정리 (GC)
     this.cleanupStaleTrackerEntries(torrentList);
 
-    console.log(`[${new Date().toLocaleString('ko-KR')}] 토렌트 관리 작업 완료`);
+    const cycleEndTime = new Date().toLocaleString('ko-KR');
+    if (performedActionsCount > 0) {
+      console.log(`[작업 결과] 총 ${performedActionsCount}건의 변경 작업이 수행되었습니다.`);
+    } else {
+      console.log('[작업 결과] 수행할 변경 작업(삭제/우선순위 조정)이 없습니다.');
+    }
+    console.log(`================ [${cycleEndTime}] 작업 사이클 완료 ================\n`);
   }
 
   /**
    * 1. 강제시작(ForceStart)이고 100% 완료된 토렌트 삭제
    * @param {Array<Object>} torrentList
+   * @returns {Promise<number>} 처리된 토렌트 개수
    */
   async cleanupCompletedForceStartTorrents(torrentList) {
     const targetTorrents = torrentList.filter((torrent) => {
@@ -53,36 +81,81 @@ export class TorrentManager {
     });
 
     if (targetTorrents.length === 0) {
-      return;
+      return 0;
     }
 
-    console.log(`[강제시작 완료 삭제] 대상 ${targetTorrents.length}개 발견`);
+    console.log(`\n[강제시작 완료 삭제] 대상 토렌트 ${targetTorrents.length}개 감지:`);
     for (const torrent of targetTorrents) {
-      console.log(`  - [삭제 대상] 이름: "${torrent.name}", 상태: ${torrent.state}, 진행률: ${(torrent.progress * 100).toFixed(1)}%`);
+      console.log(`  - [대상] "${torrent.name}" (상태: ${torrent.state}, 진행률: ${(torrent.progress * 100).toFixed(1)}%, 해시: ${torrent.hash.substring(0, 8)}...)`);
     }
 
     const hashes = targetTorrents.map((t) => t.hash);
 
     if (this.config.enableDryRun) {
-      console.log(`[드라이런] 실제 삭제는 수행하지 않았습니다. (대상 수: ${hashes.length})`);
-      return;
+      console.log(`  -> [드라이런] 실제 삭제는 수행하지 않았습니다. (대상: ${hashes.length}개)`);
+      return targetTorrents.length;
     }
 
     const success = await this.qbitApiClient.deleteTorrents(hashes, this.config.deleteTorrentFiles);
     if (success) {
-      console.log(`[강제시작 완료 삭제] ${hashes.length}개의 토렌트를 성공적으로 삭제했습니다.`);
+      for (const torrent of targetTorrents) {
+        console.log(`  -> [삭제 완료] "${torrent.name}" (파일 삭제 여부: ${this.config.deleteTorrentFiles ? '파일 포함 삭제' : '토렌트만 삭제'})`);
+      }
+      return targetTorrents.length;
     }
+
+    return 0;
   }
 
   /**
-   * 2. 장시간 다운로드가 정체된 일반 토렌트 우선순위 최하위 이동
+   * 2. 일반(Non-ForceStart)이고 100% 완료된 토렌트 삭제
+   * @param {Array<Object>} torrentList
+   * @returns {Promise<number>} 처리된 토렌트 개수
+   */
+  async cleanupCompletedNormalTorrents(torrentList) {
+    const targetTorrents = torrentList.filter((torrent) => {
+      const isForceStart = Boolean(torrent.force_start);
+      const isCompleted = torrent.progress >= 1.0 || SEEDING_STATES.includes(torrent.state);
+      return !isForceStart && isCompleted;
+    });
+
+    if (targetTorrents.length === 0) {
+      return 0;
+    }
+
+    console.log(`\n[일반 완료 삭제] 대상 토렌트 ${targetTorrents.length}개 감지:`);
+    for (const torrent of targetTorrents) {
+      console.log(`  - [대상] "${torrent.name}" (상태: ${torrent.state}, 진행률: ${(torrent.progress * 100).toFixed(1)}%, 해시: ${torrent.hash.substring(0, 8)}...)`);
+    }
+
+    const hashes = targetTorrents.map((t) => t.hash);
+
+    if (this.config.enableDryRun) {
+      console.log(`  -> [드라이런] 실제 삭제는 수행하지 않았습니다. (대상: ${hashes.length}개)`);
+      return targetTorrents.length;
+    }
+
+    const success = await this.qbitApiClient.deleteTorrents(hashes, this.config.deleteTorrentFiles);
+    if (success) {
+      for (const torrent of targetTorrents) {
+        console.log(`  -> [삭제 완료] "${torrent.name}" (파일 삭제 여부: ${this.config.deleteTorrentFiles ? '파일 포함 삭제' : '토렌트만 삭제'})`);
+      }
+      return targetTorrents.length;
+    }
+
+    return 0;
+  }
+
+  /**
+   * 3. 장시간 다운로드가 정체된 일반 토렌트 우선순위 최하위 이동
    * (주의: 강제 다운로드(force_start=true)는 대상에서 제외)
    * @param {Array<Object>} torrentList
+   * @returns {Promise<number>} 처리된 토렌트 개수
    */
   async handleStalledDownloadTorrents(torrentList) {
     const now = Date.now();
     const thresholdMs = this.config.stalledThresholdMinutes * TIME_CONSTANTS.MILLISECONDS_PER_MINUTE;
-    const hashesToDemote = [];
+    const demoteTargets = [];
 
     for (const torrent of torrentList) {
       // 강제 다운로드(force_start=true) 또는 이미 완료된 토렌트는 제외
@@ -112,48 +185,65 @@ export class TorrentManager {
             lastProgress: currentProgress,
             hasDemoted: false
           });
+          console.log(`  [정체 감지 시작] "${torrent.name}" (현재 속도: ${currentDlSpeed} B/s, 진행률: ${(currentProgress * 100).toFixed(1)}%)`);
         } else {
           // 진행률이 증가했으면 정체 시간 리셋
           if (currentProgress > trackInfo.lastProgress) {
             trackInfo.stalledSince = now;
             trackInfo.lastProgress = currentProgress;
             trackInfo.hasDemoted = false;
+            console.log(`  [정체 해제/진행됨] "${torrent.name}" (진행률 상승: ${(currentProgress * 100).toFixed(1)}%)`);
           } else {
             const stalledDurationMinutes = (now - trackInfo.stalledSince) / TIME_CONSTANTS.MILLISECONDS_PER_MINUTE;
 
             // 임계 시간 초과 및 아직 이번 정체 건에 대해 우선순위 조정을 안 한 경우
             if ((now - trackInfo.stalledSince) >= thresholdMs && !trackInfo.hasDemoted) {
-              console.log(
-                `  - [우선순위 강등 대상] 이름: "${torrent.name}", 정체 지속: ${stalledDurationMinutes.toFixed(1)}분 (속도: ${currentDlSpeed} B/s, 진행률: ${(currentProgress * 100).toFixed(1)}%)`
-              );
-              hashesToDemote.push(torrent.hash);
+              demoteTargets.push({
+                torrent,
+                stalledDurationMinutes,
+                speed: currentDlSpeed,
+                progress: currentProgress
+              });
               trackInfo.hasDemoted = true;
             }
           }
         }
       } else {
-        // 속도가 정상인 경우 추적 리셋
+        // 속도가 정상으로 회복된 경우 추적 리셋
         if (trackInfo) {
           this.stalledTracker.delete(torrent.hash);
+          console.log(`  [속도 회복] "${torrent.name}" (현재 속도: ${(currentDlSpeed / 1024).toFixed(1)} KB/s)`);
         }
       }
     }
 
-    if (hashesToDemote.length === 0) {
-      return;
+    if (demoteTargets.length === 0) {
+      return 0;
     }
 
-    console.log(`[우선순위 조정] ${hashesToDemote.length}개의 정체된 토렌트를 대기열 최하위로 이동합니다.`);
+    console.log(`\n[정체 토렌트 우선순위 최하위 이동] 대상 ${demoteTargets.length}개 감지:`);
+    for (const target of demoteTargets) {
+      console.log(
+        `  - [대상] "${target.torrent.name}" (정체 지속: ${target.stalledDurationMinutes.toFixed(1)}분, 속도: ${target.speed} B/s, 진행률: ${(target.progress * 100).toFixed(1)}%)`
+      );
+    }
+
+    const hashes = demoteTargets.map((t) => t.torrent.hash);
 
     if (this.config.enableDryRun) {
-      console.log(`[드라이런] 실제 우선순위 변경은 수행하지 않았습니다. (대상 수: ${hashesToDemote.length})`);
-      return;
+      console.log(`  -> [드라이런] 실제 우선순위 변경은 수행하지 않았습니다. (대상: ${hashes.length}개)`);
+      return demoteTargets.length;
     }
 
-    const success = await this.qbitApiClient.moveTorrentsToBottomPriority(hashesToDemote);
+    const success = await this.qbitApiClient.moveTorrentsToBottomPriority(hashes);
     if (success) {
-      console.log(`[우선순위 조정] ${hashesToDemote.length}개의 토렌트 우선순위를 최하위로 변경 완료했습니다.`);
+      for (const target of demoteTargets) {
+        console.log(`  -> [우선순위 변경 완료] "${target.torrent.name}" -> 대기열 최하위(Bottom Priority)로 이동 완료`);
+      }
+      return demoteTargets.length;
     }
+
+    return 0;
   }
 
   /**

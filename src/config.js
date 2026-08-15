@@ -105,6 +105,21 @@ export const loadConfiguration = () => {
     DEFAULT_CONFIG_VALUES.ENABLE_DRY_RUN
   );
 
+  const enableDeleteCompletedForceStart = parseBoolean(
+    process.env.ENABLE_DELETE_COMPLETED_FORCE_START,
+    DEFAULT_CONFIG_VALUES.ENABLE_DELETE_COMPLETED_FORCE_START
+  );
+
+  const enableDeleteCompletedNormal = parseBoolean(
+    process.env.ENABLE_DELETE_COMPLETED_NORMAL,
+    DEFAULT_CONFIG_VALUES.ENABLE_DELETE_COMPLETED_NORMAL
+  );
+
+  const enableDemoteStalled = parseBoolean(
+    process.env.ENABLE_DEMOTE_STALLED,
+    DEFAULT_CONFIG_VALUES.ENABLE_DEMOTE_STALLED
+  );
+
   return {
     qbitUrl,
     qbitUsername,
@@ -113,7 +128,10 @@ export const loadConfiguration = () => {
     stalledThresholdMinutes,
     stalledSpeedLimitBytes,
     deleteTorrentFiles,
-    enableDryRun
+    enableDryRun,
+    enableDeleteCompletedForceStart,
+    enableDeleteCompletedNormal,
+    enableDemoteStalled
   };
 };
 

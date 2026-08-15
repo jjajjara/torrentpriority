@@ -18,8 +18,12 @@ const printConfigurationSummary = () => {
   console.log(`- 점검 주기: ${appConfig.checkIntervalMinutes}분마다`);
   console.log(`- 정체 기준 시간: ${appConfig.stalledThresholdMinutes}분`);
   console.log(`- 정체 기준 속도: ${appConfig.stalledSpeedLimitBytes} Bytes/s (1 KB/s)`);
-  console.log(`- 강제시작 삭제 시 파일 동시 삭제: ${appConfig.deleteTorrentFiles ? '예' : '아니오 (토렌트만 삭제)'}`);
-  console.log(`- 드라이 런(Dry Run) 모드: ${appConfig.enableDryRun ? '활성화 (실제 수정 없음)' : '비활성화 (실제 적용)'}`);
+  console.log(`- 삭제 시 실제 파일 포함 삭제: ${appConfig.deleteTorrentFiles ? '예' : '아니오 (토렌트만 삭제)'}`);
+  console.log(`- 드라이 런(Dry Run) 모드: ${appConfig.enableDryRun ? 'ON (실제 수정 없음)' : 'OFF (실제 적용)'}`);
+  console.log('---------------- [기능별 활성화] -------------');
+  console.log(`- [기능 1] 완료된 강제시작 토렌트 삭제: ${appConfig.enableDeleteCompletedForceStart ? 'ON' : 'OFF'}`);
+  console.log(`- [기능 2] 완료된 일반 토렌트 삭제: ${appConfig.enableDeleteCompletedNormal ? 'ON' : 'OFF'}`);
+  console.log(`- [기능 3] 정체된 토렌트 최하위 강등: ${appConfig.enableDemoteStalled ? 'ON' : 'OFF'}`);
   console.log('==============================================\n');
 };
 
