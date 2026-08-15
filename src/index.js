@@ -1,5 +1,5 @@
 /**
- * qBittorrent 자동 관리 도구 메인 엔트리포인트
+ * qBittorrent Priority Manager main entrypoint
  */
 import { appConfig } from './config.js';
 import { TIME_CONSTANTS } from './constants.js';
@@ -7,28 +7,28 @@ import { QbitApiClient } from './services/qbitApi.js';
 import { TorrentManager } from './services/torrentManager.js';
 
 /**
- * 환경 설정 요약 정보 출력
+ * Print application configuration summary
  */
 const printConfigurationSummary = () => {
   console.log('==============================================');
-  console.log('       qBittorrent 자동 관리 도구 시작         ');
+  console.log('       qBittorrent Priority Manager           ');
   console.log('==============================================');
-  console.log(`- 서버 URL: ${appConfig.qbitUrl}`);
-  console.log(`- 계정: ${appConfig.qbitUsername}`);
-  console.log(`- 점검 주기: ${appConfig.checkIntervalMinutes}분마다`);
-  console.log(`- 정체 기준 시간: ${appConfig.stalledThresholdMinutes}분`);
-  console.log(`- 정체 기준 속도: ${appConfig.stalledSpeedLimitBytes} Bytes/s (1 KB/s)`);
-  console.log(`- 삭제 시 실제 파일 포함 삭제: ${appConfig.deleteTorrentFiles ? '예' : '아니오 (토렌트만 삭제)'}`);
-  console.log(`- 드라이 런(Dry Run) 모드: ${appConfig.enableDryRun ? 'ON (실제 수정 없음)' : 'OFF (실제 적용)'}`);
-  console.log('---------------- [기능별 활성화] -------------');
-  console.log(`- [기능 1] 완료된 강제시작 토렌트 삭제: ${appConfig.enableDeleteCompletedForceStart ? 'ON' : 'OFF'}`);
-  console.log(`- [기능 2] 완료된 일반 토렌트 삭제: ${appConfig.enableDeleteCompletedNormal ? 'ON' : 'OFF'}`);
-  console.log(`- [기능 3] 정체된 토렌트 최하위 강등: ${appConfig.enableDemoteStalled ? 'ON' : 'OFF'}`);
+  console.log(`- Server URL: ${appConfig.qbitUrl}`);
+  console.log(`- Username: ${appConfig.qbitUsername}`);
+  console.log(`- Check Interval: Every ${appConfig.checkIntervalMinutes} minute(s)`);
+  console.log(`- Stalled Threshold: ${appConfig.stalledThresholdMinutes} minute(s)`);
+  console.log(`- Stalled Speed Limit: ${appConfig.stalledSpeedLimitBytes} Bytes/s (1 KB/s)`);
+  console.log(`- Delete Downloaded Files on Removal: ${appConfig.deleteTorrentFiles ? 'YES' : 'NO (Torrent entry only)'}`);
+  console.log(`- Dry-Run Mode: ${appConfig.enableDryRun ? 'ON (No changes applied)' : 'OFF (Live execution)'}`);
+  console.log('---------------- [Feature Toggles] ------------');
+  console.log(`- [Feature 1] Delete Completed ForceStart: ${appConfig.enableDeleteCompletedForceStart ? 'ON' : 'OFF'}`);
+  console.log(`- [Feature 2] Delete Completed Normal:     ${appConfig.enableDeleteCompletedNormal ? 'ON' : 'OFF'}`);
+  console.log(`- [Feature 3] Demote Stalled Downloads:    ${appConfig.enableDemoteStalled ? 'ON' : 'OFF'}`);
   console.log('==============================================\n');
 };
 
 /**
- * 메인 실행 함수
+ * Main application execution
  */
 const startApplication = async () => {
   try {
@@ -37,25 +37,25 @@ const startApplication = async () => {
     const qbitApiClient = new QbitApiClient(appConfig);
     const torrentManager = new TorrentManager(qbitApiClient, appConfig);
 
-    // 1. 초기 로그인
+    // 1. Initial Login
     await qbitApiClient.login();
 
-    // 2. 시작 시 1회 즉시 실행
+    // 2. Execute 1 cycle immediately upon start
     await torrentManager.processCycle();
 
-    // 3. 주기적 실행 타이머 등록
+    // 3. Register periodic interval loop
     const intervalMs = appConfig.checkIntervalMinutes * TIME_CONSTANTS.MILLISECONDS_PER_MINUTE;
     const intervalTimer = setInterval(async () => {
       try {
         await torrentManager.processCycle();
       } catch (cycleError) {
-        console.error(`[작업 오류] 주기 실행 중 에러 발생: ${cycleError.message}`);
+        console.error(`[Cycle Error] Error occurred during cycle execution: ${cycleError.message}`);
       }
     }, intervalMs);
 
-    // 프로세스 종료 시그널 처리
+    // Graceful process termination
     const handleShutdown = () => {
-      console.log('\n프로세스 종료 신호 수신. 안전하게 종료합니다...');
+      console.log('\nShutdown signal received. Exiting gracefully...');
       clearInterval(intervalTimer);
       process.exit(0);
     };
@@ -63,9 +63,9 @@ const startApplication = async () => {
     process.on('SIGINT', handleShutdown);
     process.on('SIGTERM', handleShutdown);
 
-    console.log(`\n데몬이 백그라운드에서 동작 중입니다. (${appConfig.checkIntervalMinutes}분 간격)`);
+    console.log(`Daemon is running in the background (Interval: ${appConfig.checkIntervalMinutes}m).`);
   } catch (error) {
-    console.error(`[초기화 실패] ${error.message}`);
+    console.error(`[Startup Error] ${error.message}`);
     process.exit(1);
   }
 };

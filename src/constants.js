@@ -1,5 +1,5 @@
 /**
- * qBittorrent 자동 관리 도구 상수 정의 모듈
+ * Constants definition module for qBittorrent Priority Manager
  */
 
 export const TIME_CONSTANTS = {
@@ -16,17 +16,17 @@ export const DEFAULT_CONFIG_VALUES = {
   STALLED_SPEED_LIMIT_BYTES: 1024, // 1 KB/s
   DELETE_TORRENT_FILES: false,
   ENABLE_DRY_RUN: false,
-  // 기능별 On/Off 기본값
-  ENABLE_DELETE_COMPLETED_FORCE_START: true, // 강제시작 완료 토렌트 삭제
-  ENABLE_DELETE_COMPLETED_NORMAL: false,      // 일반 완료 토렌트 삭제 (안전을 위해 기본 false, .env에서 켤 수 있음)
-  ENABLE_DEMOTE_STALLED: true                // 정체 다운로드 우선순위 최하위 이동
+  // Feature toggle defaults
+  ENABLE_DELETE_COMPLETED_FORCE_START: true, // Delete completed ForceStart torrents
+  ENABLE_DELETE_COMPLETED_NORMAL: false,      // Delete completed normal torrents (default false for safety)
+  ENABLE_DEMOTE_STALLED: true                // Demote stalled downloads to bottom priority
 };
 
 /**
- * qBittorrent 토렌트 상태값 정의
+ * qBittorrent torrent state definitions
  */
 export const TORRENT_STATES = {
-  // 다운로드 관련 상태
+  // Download states
   DOWNLOADING: 'downloading',
   STALLED_DOWNLOAD: 'stalledDL',
   FORCED_DOWNLOAD: 'forcedDL',
@@ -34,7 +34,7 @@ export const TORRENT_STATES = {
   CHECKING_DOWNLOAD: 'checkingDL',
   PAUSED_DOWNLOAD: 'pausedDL',
 
-  // 업로드/시딩 관련 상태
+  // Upload/Seeding states
   UPLOADING: 'uploading',
   STALLED_UPLOAD: 'stalledUP',
   FORCED_UPLOAD: 'forcedUP',
@@ -42,7 +42,7 @@ export const TORRENT_STATES = {
   CHECKING_UPLOAD: 'checkingUP',
   PAUSED_UPLOAD: 'pausedUP',
 
-  // 기타 상태
+  // Other states
   ERROR: 'error',
   MISSING_FILES: 'missingFiles',
   MOVING: 'moving',
@@ -50,7 +50,7 @@ export const TORRENT_STATES = {
 };
 
 /**
- * 다운로드 진행 상태 목록
+ * Active download states
  */
 export const ACTIVE_DOWNLOAD_STATES = [
   TORRENT_STATES.DOWNLOADING,
@@ -58,7 +58,7 @@ export const ACTIVE_DOWNLOAD_STATES = [
 ];
 
 /**
- * 시딩/완료 상태 목록
+ * Completed/Seeding states
  */
 export const SEEDING_STATES = [
   TORRENT_STATES.UPLOADING,

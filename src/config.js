@@ -1,14 +1,14 @@
 /**
- * 환경 설정 로드 및 유효성 검증 모듈
+ * Configuration loader and validation module
  */
 import dotenv from 'dotenv';
 import { DEFAULT_CONFIG_VALUES } from './constants.js';
 
-// .env 파일 로드
+// Load .env file
 dotenv.config();
 
 /**
- * 문자열을 불리언 값으로 안전하게 변환
+ * Safely parse string to boolean
  * @param {string|undefined} value
  * @param {boolean} defaultValue
  * @returns {boolean}
@@ -21,7 +21,7 @@ const parseBoolean = (value, defaultValue) => {
 };
 
 /**
- * 문자열을 양의 정수로 안전하게 변환
+ * Safely parse string to positive number
  * @param {string|undefined} value
  * @param {number} defaultValue
  * @param {string} fieldName
@@ -33,36 +33,36 @@ const parsePositiveNumber = (value, defaultValue, fieldName) => {
   }
   const parsedValue = Number(value);
   if (isNaN(parsedValue) || parsedValue <= 0) {
-    throw new Error(`[설정 오류] ${fieldName} 값은 0보다 큰 숫자여야 합니다. 현재 입력값: ${value}`);
+    throw new Error(`[Config Error] ${fieldName} must be a positive number. Received: ${value}`);
   }
   return parsedValue;
 };
 
 /**
- * URL 형식 검증 및 정규화
+ * Validate and normalize URL
  * @param {string|undefined} url
  * @returns {string}
  */
 const validateAndFormatUrl = (url) => {
   if (!url || typeof url !== 'string' || url.trim() === '') {
-    throw new Error('[설정 오류] QBIT_URL 환경변수가 설정되지 않았습니다.');
+    throw new Error('[Config Error] QBIT_URL environment variable is required.');
   }
 
   const trimmedUrl = url.trim();
   try {
     const parsedUrl = new URL(trimmedUrl);
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      throw new Error('[설정 오류] QBIT_URL은 http:// 또는 https:// 로 시작해야 합니다.');
+      throw new Error('[Config Error] QBIT_URL must start with http:// or https://');
     }
-    // 마지막 슬래시 제거
+    // Remove trailing slash
     return trimmedUrl.replace(/\/+$/, '');
   } catch (error) {
-    throw new Error(`[설정 오류] 올바른 URL 형식이 아닙니다: ${trimmedUrl} (${error.message})`);
+    throw new Error(`[Config Error] Invalid URL format: ${trimmedUrl} (${error.message})`);
   }
 };
 
 /**
- * 환경 설정 객체 생성 및 검증
+ * Load and validate application configuration
  */
 export const loadConfiguration = () => {
   const qbitUrl = validateAndFormatUrl(process.env.QBIT_URL);
@@ -70,11 +70,11 @@ export const loadConfiguration = () => {
   const qbitPassword = process.env.QBIT_PASSWORD;
 
   if (!qbitUsername) {
-    throw new Error('[설정 오류] QBIT_USERNAME 환경변수가 설정되지 않았습니다.');
+    throw new Error('[Config Error] QBIT_USERNAME environment variable is required.');
   }
 
   if (qbitPassword === undefined || qbitPassword === null) {
-    throw new Error('[설정 오류] QBIT_PASSWORD 환경변수가 설정되지 않았습니다.');
+    throw new Error('[Config Error] QBIT_PASSWORD environment variable is required.');
   }
 
   const checkIntervalMinutes = parsePositiveNumber(

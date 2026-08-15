@@ -1,5 +1,5 @@
 /**
- * qBittorrent Web API v2 통신 모듈
+ * qBittorrent Web API v2 communication module
  */
 import axios from 'axios';
 
@@ -26,14 +26,14 @@ export class QbitApiClient {
       }
     });
 
-    // 응답 인터셉터: 403 Forbidden 발생 시 세션 만료로 판단 후 재로그인
+    // Response interceptor: Re-login on 403 Forbidden
     this.httpClient.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
         if (error.response?.status === 403 && !originalRequest._retry) {
           originalRequest._retry = true;
-          console.warn('[qBittorrent API] 세션이 만료되었거나 인증이 필요합니다. 재로그인을 시도합니다.');
+          console.warn('[qBittorrent API] Session expired or unauthorized. Attempting to re-login...');
           await this.login();
           if (this.cookieHeader) {
             originalRequest.headers['Cookie'] = this.cookieHeader;
@@ -46,7 +46,7 @@ export class QbitApiClient {
   }
 
   /**
-   * qBittorrent 서버 로그인 및 인증 쿠키 획득
+   * Login to qBittorrent WebUI and obtain authentication cookie
    */
   async login() {
     try {
@@ -64,26 +64,26 @@ export class QbitApiClient {
       });
 
       if (response.data === 'Fails.') {
-        throw new Error('아이디 또는 비밀번호가 올바르지 않습니다.');
+        throw new Error('Invalid username or password.');
       }
 
-      // Set-Cookie 헤더에서 모든 쿠키 추출하여 조합
+      // Extract and combine all Set-Cookie headers
       const setCookieHeaders = response.headers['set-cookie'];
       if (setCookieHeaders && setCookieHeaders.length > 0) {
         this.cookieHeader = setCookieHeaders.map((cookie) => cookie.split(';')[0]).join('; ');
         this.httpClient.defaults.headers.common['Cookie'] = this.cookieHeader;
       }
 
-      console.log('[qBittorrent API] 로그인 성공');
+      console.log('[qBittorrent API] Successfully logged in');
       return true;
     } catch (error) {
-      console.error(`[qBittorrent API] 로그인 실패: ${error.message}`);
+      console.error(`[qBittorrent API] Login failed: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * 토렌트 목록 조회
+   * Fetch list of torrents
    * @param {string} [filter='all']
    * @returns {Promise<Array<Object>>}
    */
@@ -94,15 +94,15 @@ export class QbitApiClient {
       });
       return response.data;
     } catch (error) {
-      console.error(`[qBittorrent API] 토렌트 목록 조회 실패: ${error.message}`);
+      console.error(`[qBittorrent API] Failed to fetch torrent list: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * 토렌트 삭제
-   * @param {Array<string>} hashes - 삭제할 토렌트의 해시 목록
-   * @param {boolean} deleteFiles - 실제 파일 삭제 여부
+   * Delete torrents by hash
+   * @param {Array<string>} hashes - List of torrent hashes to delete
+   * @param {boolean} deleteFiles - Whether to delete downloaded data files
    * @returns {Promise<boolean>}
    */
   async deleteTorrents(hashes, deleteFiles = false) {
@@ -118,14 +118,14 @@ export class QbitApiClient {
       await this.httpClient.post('/api/v2/torrents/delete', params.toString());
       return true;
     } catch (error) {
-      console.error(`[qBittorrent API] 토렌트 삭제 실패: ${error.message}`);
+      console.error(`[qBittorrent API] Failed to delete torrents: ${error.message}`);
       throw error;
     }
   }
 
   /**
-   * 토렌트 대기열 우선순위를 최하위로 이동
-   * @param {Array<string>} hashes - 우선순위를 낮출 토렌트의 해시 목록
+   * Move torrents to the bottom of the queue priority
+   * @param {Array<string>} hashes - List of torrent hashes to demote
    * @returns {Promise<boolean>}
    */
   async moveTorrentsToBottomPriority(hashes) {
@@ -140,7 +140,7 @@ export class QbitApiClient {
       await this.httpClient.post('/api/v2/torrents/bottomPrio', params.toString());
       return true;
     } catch (error) {
-      console.error(`[qBittorrent API] 토렌트 우선순위 최하위 변경 실패: ${error.message}`);
+      console.error(`[qBittorrent API] Failed to demote torrent priority: ${error.message}`);
       throw error;
     }
   }
